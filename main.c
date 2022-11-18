@@ -2,6 +2,9 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include "string.h"
+#include <pthread.h>
+
+bool running = true;
 
 
 bool get_is_shift(uint32_t flag) {
@@ -270,6 +273,11 @@ CGEventRef on_keystroke(
 
       bool is_shift = get_is_shift(flag);
 
+      if (key_code == 2) {
+        running = !running;
+        printf("running %d\n", running);
+      }
+
       char *key_str = key_code_to_str(key_code, is_shift, false);
       char *prefix = "";
       if (get_is_cmd(flag)) {
@@ -292,6 +300,37 @@ CGEventRef on_keystroke(
   }
 
   return event;
+}
+
+void *autoClick(void*) {
+  CGEventRef move = CGEventCreateMouseEvent(
+      NULL, kCGEventMouseMoved,
+      CGPointMake(500, 500),
+      kCGMouseButtonRight
+  );
+
+  CGEventRef rightDown = CGEventCreateMouseEvent(
+      NULL, kCGEventRightMouseDown,
+      CGPointMake(500, 500),
+      kCGMouseButtonRight
+  );
+  CGEventRef rightUp = CGEventCreateMouseEvent(
+      NULL, kCGEventRightMouseUp,
+      CGPointMake(500, 500),
+      kCGMouseButtonRight
+  );
+
+  while (true) {
+    if (!running) {
+      sleep(1);
+      continue;
+    }
+    CGEventPost(kCGHIDEventTap, move);
+    CGEventPost(kCGHIDEventTap, rightDown);
+    CGEventPost(kCGHIDEventTap, rightUp);
+    sleep(1);
+  }
+  return NULL;
 }
 
 
@@ -317,9 +356,14 @@ int main() {
       handle,
       0
   );
-  CFRunLoopAddSource(CFRunLoopGetMain(), runloop_source, kCFRunLoopCommonModes);
 
+  pthread_t thread_id;
+  pthread_create(&thread_id, NULL, autoClick, NULL);
+
+  CFRunLoopAddSource(CFRunLoopGetMain(), runloop_source, kCFRunLoopCommonModes);
   CFRunLoopRun();
+
+  pthread_join(thread_id, NULL);
 
   return 0;
 }
