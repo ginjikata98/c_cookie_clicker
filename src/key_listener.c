@@ -263,6 +263,8 @@ static KeyCode keyCodeMapper(int keyCode) {
   switch (keyCode) {
     case 2:
       return KEY_D;
+    case 13:
+      return KEY_W;
     default:
       return NULL;
   }

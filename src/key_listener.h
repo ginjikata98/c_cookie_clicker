@@ -8,7 +8,8 @@
 #include <stdbool.h>
 
 typedef enum KeyCode {
-  KEY_D
+  KEY_W,
+  KEY_D,
 } KeyCode;
 
 

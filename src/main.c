@@ -1,52 +1,31 @@
-#include <stdio.h>
-#include <CoreFoundation/CoreFoundation.h>
-#include <CoreGraphics/CoreGraphics.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "key_listener.h"
+#include "robot.h"
 
-bool running = true;
+bool running = false;
 bool isQuit = false;
 
-void *autoClick(void *var) {
-  CGEventRef move = CGEventCreateMouseEvent(
-      NULL, kCGEventMouseMoved,
-      CGPointMake(500, 500),
-      kCGMouseButtonRight
-  );
-
-  CGEventRef rightDown = CGEventCreateMouseEvent(
-      NULL, kCGEventRightMouseDown,
-      CGPointMake(500, 500),
-      kCGMouseButtonRight
-  );
-  CGEventRef rightUp = CGEventCreateMouseEvent(
-      NULL, kCGEventRightMouseUp,
-      CGPointMake(500, 500),
-      kCGMouseButtonRight
-  );
-
-  while (!isQuit) {
-    printf("running %d\n", running);
-    if (!running) {
-      sleep(1);
-      continue;
-    }
-    CGEventPost(kCGHIDEventTap, move);
-    CGEventPost(kCGHIDEventTap, rightDown);
-    CGEventPost(kCGHIDEventTap, rightUp);
-    sleep(1);
+void *keypressCallBack(KeyEvent *event) {
+  if (event->keyCode == KEY_D && event->shiftPressed) {
+    isQuit = true;
+    exit(-1);
+  }
+  if (event->keyCode == KEY_W) {
+    running = !running;
   }
   return NULL;
 }
 
-void *keypressCallBack(KeyEvent *event) {
-  if (event->keyCode == KEY_D) {
-    if (event->shiftPressed) {
-      isQuit = true;
-      exit(-1);
+void *autoClick(void *var) {
+  while (!isQuit) {
+    if (!running) {
+      sleep(1);
+      continue;
     }
-    running = !running;
-    printf("running %d\n", running);
+    mouseClickCurrent();
+    usleep(10 * 1000);
   }
   return NULL;
 }
