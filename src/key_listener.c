@@ -1,11 +1,19 @@
+//
+// Created by DUNG.VM on 18/11/2022.
+//
+
+#include "key_listener.h"
 #include <stdio.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
-#include "string.h"
-#include <pthread.h>
+#include "pthread.h"
 
-bool running = true;
-
+struct KeyListener {
+  KeyPressedCallBack callBack;
+  CFMachPortRef handle;
+  CFRunLoopSourceRef runloop_source;
+  CGEventMask mask;
+};
 
 bool get_is_shift(uint32_t flag) {
   return (flag & kCGEventFlagMaskShift) != 0;
@@ -251,12 +259,13 @@ char *key_code_to_str(int keyCode, bool shift, bool caps) {
   return "[unknown]";
 }
 
-char *stringAppend(char *s1, char *s2) {
-  char *s3 = malloc((strlen(s1) + strlen(s2)) * sizeof(char));
-  strcat(s3, s1);
-  strcat(s3, s2);
-
-  return s3;
+static KeyCode keyCodeMapper(int keyCode) {
+  switch (keyCode) {
+    case 2:
+      return KEY_D;
+    default:
+      return NULL;
+  }
 }
 
 CGEventRef on_keystroke(
@@ -267,28 +276,18 @@ CGEventRef on_keystroke(
 ) {
   switch (type) {
     case kCGEventKeyDown: {
-
       int key_code = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
       CGEventFlags flag = CGEventGetFlags(event);
 
-      bool is_shift = get_is_shift(flag);
+      KeyEvent *keyEvent = malloc(sizeof(KeyEvent));
+      keyEvent->shiftPressed = get_is_shift(flag);
+      keyEvent->ctrlPressed = get_is_ctrl(flag);
+      keyEvent->cmdPressed = get_is_cmd(flag);
+      keyEvent->keyCode = keyCodeMapper(key_code);
 
-      if (key_code == 2) {
-        running = !running;
-        printf("running %d\n", running);
-      }
+      KeyListener *keyListener = (KeyListener *) data;
+      keyListener->callBack(keyEvent);
 
-      char *key_str = key_code_to_str(key_code, is_shift, false);
-      char *prefix = "";
-      if (get_is_cmd(flag)) {
-        prefix = stringAppend(prefix, "[cmd] + ");
-      }
-
-      if (get_is_ctrl(flag)) {
-        prefix = stringAppend(prefix, "[ctrl] + ");
-      }
-
-      printf("key: %s%s\n", prefix, key_str);
       break;
     }
     case 14:
@@ -302,68 +301,27 @@ CGEventRef on_keystroke(
   return event;
 }
 
-void *autoClick(void*) {
-  CGEventRef move = CGEventCreateMouseEvent(
-      NULL, kCGEventMouseMoved,
-      CGPointMake(500, 500),
-      kCGMouseButtonRight
-  );
-
-  CGEventRef rightDown = CGEventCreateMouseEvent(
-      NULL, kCGEventRightMouseDown,
-      CGPointMake(500, 500),
-      kCGMouseButtonRight
-  );
-  CGEventRef rightUp = CGEventCreateMouseEvent(
-      NULL, kCGEventRightMouseUp,
-      CGPointMake(500, 500),
-      kCGMouseButtonRight
-  );
-
-  while (true) {
-    if (!running) {
-      sleep(1);
-      continue;
-    }
-    CGEventPost(kCGHIDEventTap, move);
-    CGEventPost(kCGHIDEventTap, rightDown);
-    CGEventPost(kCGHIDEventTap, rightUp);
-    sleep(1);
-  }
-  return NULL;
-}
-
-
-int main() {
-
-  CFMachPortRef handle;
-  CFRunLoopSourceRef runloop_source;
-  CGEventMask mask;
-
-  mask = (1 << kCGEventKeyDown) | (1 << NX_SYSDEFINED);
-
-  handle = CGEventTapCreate(
+KeyListener *KeyListenerInit(KeyPressedCallBack callBack) {
+  KeyListener *keyListener = malloc(sizeof(KeyListener));
+  keyListener->callBack = callBack;
+  keyListener->mask = (1 << kCGEventKeyDown) | (1 << NX_SYSDEFINED);
+  keyListener->handle = CGEventTapCreate(
       kCGSessionEventTap,
       kCGHeadInsertEventTap,
       kCGEventTapOptionDefault,
-      mask,
+      keyListener->mask,
       on_keystroke,
-      NULL
+      keyListener
   );
-
-  runloop_source = CFMachPortCreateRunLoopSource(
+  keyListener->runloop_source = CFMachPortCreateRunLoopSource(
       kCFAllocatorDefault,
-      handle,
+      keyListener->handle,
       0
   );
+  return keyListener;
+}
 
-  pthread_t thread_id;
-  pthread_create(&thread_id, NULL, autoClick, NULL);
-
-  CFRunLoopAddSource(CFRunLoopGetMain(), runloop_source, kCFRunLoopCommonModes);
+void KeyListenerRun(KeyListener *keyListener) {
+  CFRunLoopAddSource(CFRunLoopGetMain(), keyListener->runloop_source, kCFRunLoopCommonModes);
   CFRunLoopRun();
-
-  pthread_join(thread_id, NULL);
-
-  return 0;
 }
