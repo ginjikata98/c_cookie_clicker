@@ -25,7 +25,6 @@ void *autoClick(void *var) {
       continue;
     }
     click();
-    usleep(10 * 1000);
   }
   return NULL;
 }

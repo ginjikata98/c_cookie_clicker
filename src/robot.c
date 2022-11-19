@@ -29,6 +29,7 @@ void mouseClickPoint(CGPoint point) {
   CGEventPost(kCGHIDEventTap, leftUp);
   CFRelease(leftDown);
   CFRelease(leftUp);
+  usleep(10 * 1000);
 }
 
 void clickAt(double x, double y) {
