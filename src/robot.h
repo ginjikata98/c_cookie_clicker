@@ -8,10 +8,14 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 
-void mouseClick(double x, double y);
+void clickAt(double x, double y);
 
-void mouseMove(double x, double y);
+void moveTo(double x, double y);
 
-void mouseClickCurrent();
+void click();
+
+void screenCapture();
+
+void getAllWindow();
 
 #endif //KEYLISTENER_ROBOT_H

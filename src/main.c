@@ -24,7 +24,7 @@ void *autoClick(void *var) {
       sleep(1);
       continue;
     }
-    mouseClickCurrent();
+    click();
     usleep(10 * 1000);
   }
   return NULL;
